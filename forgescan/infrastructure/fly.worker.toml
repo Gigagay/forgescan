@@ -1,0 +1,8 @@
+app = "forgescan-worker"
+primary_region = "iad"
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  ENVIRONMENT = "production"

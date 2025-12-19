@@ -1,0 +1,75 @@
+# ==============================================================================
+# FORGESCAN CI/CD INTEGRATION PACKAGE
+# ==============================================================================
+# This package includes:
+# 1. GitHub Actions workflow
+# 2. Backend webhook API
+# 3. Database models for CI/CD integration
+# 4. Frontend configuration UI
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# FILE 1: GitHub Actions Workflow
+# Save as: .github/workflows/forgescan.yml
+# ------------------------------------------------------------------------------
+name: ForgeScan Security Scan
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  workflow_dispatch: # Manual trigger
+  schedule:
+    - cron: '0 2 * * *' # Daily at 2 AM
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Run ForgeScan Security Scan
+        id: forgescan
+        uses: forgescan/scan-action@v1
+        with:
+          api-key: ${{ secrets.FORGESCAN_API_KEY }}
+          target-url: ${{ github.event.pull_request.html_url || github.repository }}
+          scanner-types: 'web,api,sca'
+          fail-on-severity: 'critical,high'
+          report-format: 'sarif'
+      
+      - name: Upload SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: forgescan-results.sarif
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const results = ${{ steps.forgescan.outputs.results }};
+            const comment = `## 🔒 ForgeScan Security Report
+            
+            **Scan Status:** ${results.status}
+            
+            ### Findings Summary
+            - 🔴 Critical: ${results.critical}
+            - 🟠 High: ${results.high}
+            - 🟡 Medium: ${results.medium}
+            - 🟢 Low: ${results.low}
+            
+            [View Full Report](${results.report_url})
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
