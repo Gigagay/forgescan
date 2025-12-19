@@ -22,6 +22,10 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
+USER appuser
+
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

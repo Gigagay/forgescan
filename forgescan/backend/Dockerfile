@@ -16,6 +16,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# create non-root user and use it in runtime image
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# ensure app files are owned by appuser
+RUN chown -R appuser:appgroup /app
+USER appuser
+
 # Expose port
 EXPOSE 8000
 

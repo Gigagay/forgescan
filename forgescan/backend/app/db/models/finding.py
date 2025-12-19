@@ -33,7 +33,7 @@ class Finding(BaseModel):
     
     # Remediation
     remediation = Column(Text, nullable=True)
-    references = Column(JSON, default=[])
+    references = Column(JSON, default=list, nullable=False)
     
     # Risk assessment
     risk_score = Column(Integer, nullable=True)
@@ -44,7 +44,7 @@ class Finding(BaseModel):
     false_positive = Column(Boolean, default=False)
     
     # Additional metadata
-    meta = Column(JSON, default={})
+    meta = Column(JSON, default=dict, nullable=False)
     
     # Relationships
     scan = relationship("Scan", back_populates="findings")

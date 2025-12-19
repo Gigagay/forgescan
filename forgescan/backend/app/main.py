@@ -4,21 +4,20 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import time
-
-from app.core.config import settings
-from app.core.logging import logger
-# Ensure core shims and compatibility layers are loaded early
-import app.core
-from app.db.database import init_db, close_db
-from app.scanners.plugin_manager import PluginManager
-from app.api.v1.router import api_router
-from app.api.v1 import websocket
-from app.core.audit_log import AuditLogger, AuditEventType
 import uuid
 from datetime import datetime
 import inspect
 import asyncio
 import functools
+
+from app.core.config import settings
+from app.core.logging import logger
+# Ensure core shims and compatibility layers are loaded early
+from app.db.database import init_db, close_db
+from app.scanners.plugin_manager import PluginManager
+from app.api.v1.router import api_router
+from app.api.v1 import websocket
+from app.core.audit_log import AuditLogger, AuditEventType
 
 
 
@@ -51,10 +50,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Normalize CORS origins config (accept list or comma-separated string)
+_origins = settings.BACKEND_CORS_ORIGINS
+if isinstance(_origins, str):
+    BACKEND_CORS_ORIGINS = [o.strip() for o in _origins.split(",") if o.strip()]
+else:
+    BACKEND_CORS_ORIGINS = list(_origins or [])
+
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+    allow_origins=[str(origin) for origin in BACKEND_CORS_ORIGINS],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,7 +95,7 @@ async def health_check():
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler"""
-    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    logger.exception("Unhandled exception while handling request", exc_info=exc)
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},
@@ -97,22 +103,18 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.middleware("http")
 async def audit_log_request_middleware(request: Request, call_next):
-    """Automatically log all API requests without breaking responses"""
-     
+    """Automatically log all API requests but avoid blocking or crashing the request flow"""
     request_id = str(uuid.uuid4())
     request.state.request_id = request_id
-    
+
     start_time = datetime.utcnow()
+    # execute request
     response = await call_next(request)
     duration = (datetime.utcnow() - start_time).total_seconds()
-    
-    # Get user if authenticated
+
     user = getattr(request.state, "user", None)
-    
-    # Safe IP retrieval
     ip_address = request.client.host if getattr(request, "client", None) else None
 
-    # Log the request but don't let logging failures break response flow
     try:
         audit_logger = AuditLogger()
         kwargs = dict(
@@ -131,11 +133,16 @@ async def audit_log_request_middleware(request: Request, call_next):
         )
 
         if inspect.iscoroutinefunction(audit_logger.log_event):
-            await audit_logger.log_event(**kwargs)
+            # async implementation
+            await asyncio.wait_for(audit_logger.log_event(**kwargs), timeout=2.0)
         else:
+            # run sync implementation in threadpool with a short timeout
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, functools.partial(audit_logger.log_event, **kwargs))
+            fut = loop.run_in_executor(None, functools.partial(audit_logger.log_event, **kwargs))
+            await asyncio.wait_for(fut, timeout=2.0)
+    except asyncio.TimeoutError:
+        logger.warning("Audit logging timed out (ignored)")
     except Exception:
         logger.exception("Failed to write audit log (ignored)")
-    
-    return response  # ← Return response to client
+
+    return response
