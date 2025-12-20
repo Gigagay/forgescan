@@ -71,6 +71,16 @@ services:
       VITE_API_URL: http://localhost:8000/api/v1
     command: npm run dev -- --host
 
+  scanner-runner:
+    build: ./scanner-runner
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
 volumes:
   postgres_data:
     driver: local
