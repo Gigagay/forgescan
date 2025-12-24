@@ -15,7 +15,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.core.auth import get_current_user
+from app.api.dependencies import get_current_user
 from app.services.enforcement_service import EnforcementService
 
 router = APIRouter(prefix="/api/v1/enforce", tags=["enforcement"])

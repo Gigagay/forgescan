@@ -2,9 +2,10 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from app.db.session import get_session
+from app.db.session import get_db
 from app.db.models.finding import Finding
 from app.core.tenant import require_tenant
+
 
 router = APIRouter()
 
@@ -15,7 +16,7 @@ async def list_findings(
     severity: str | None = Query(None),
     status: str | None = Query(None),
     fingerprint: str | None = Query(None),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),
     tenant=Depends(require_tenant),
 ):
     """
@@ -69,7 +70,7 @@ async def list_findings(
 @router.get("/{finding_id}")
 async def get_finding(
     finding_id: str,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),
     tenant=Depends(require_tenant),
 ):
     """Get a single finding by ID with tenant isolation"""

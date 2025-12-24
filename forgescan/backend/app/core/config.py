@@ -1,10 +1,18 @@
 # backend/app/core/config.py
 from typing import List, Optional
+from pathlib import Path
 from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl, validator
+from pydantic import AnyHttpUrl, validator, ConfigDict
+
+# Locate the .env file relative to the project root
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent  # Goes to forgescan root
+ENV_FILE = BASE_DIR / ".env"
 
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(env_file=str(ENV_FILE), extra="ignore")
+
+    
     # Application
     PROJECT_NAME: str = "ForgeScan"
     VERSION: str = "1.0.0"
@@ -79,26 +87,10 @@ class Settings(BaseSettings):
     
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60
-        
-        
-    # URL    
+    
+    # URL
     FRONTEND_URL: str = "http://localhost:3000"
     BACKEND_URL: str = "http://localhost:8000"
-    
-    
-    print(" All remaining components completed!")
-    print("\n What was built:")
-    print("- Complete email notification system")
-    print("- Stripe billing integration")
-    print("- WebSocket real-time updates")
-    print("- All missing API endpoints")
-    print("- Complete frontend App.tsx with routing")
-    print("- Email templates for welcome & scan complete")
-    print("\nYour MVP is now 100% complete!")
-        
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 settings = Settings()

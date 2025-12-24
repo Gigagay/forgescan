@@ -16,7 +16,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.core.auth import get_current_user
+from app.api.dependencies import get_current_user
 from app.remediation.business_evaluator import (
     BusinessLogicEvaluator,
     generate_tenant_remediation_summary
